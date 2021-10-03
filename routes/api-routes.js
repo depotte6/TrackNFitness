@@ -1,49 +1,68 @@
 const router = require("express").Router();
-const db = require("../models/workout");
-require("mongoose");
+const db = require("../models");
 
 //gets all past workouts
 router.get("/api/workouts", (req, res) => {
-	db.find()
-		.then((dbData) => {
-			res.json(dbData);
-		})
-		.catch((err) => {
-			res.json(err);
-		});
-});
+    db.Workout.aggregate(
+      [
+        {
+          $addFields: {
+            totalDuration: {$sum: "$exercises.duration"}
+          }
+        }
+      ]
+    ).then((workouts) => {
+      res.status(200).json(workouts);
+    }).catch((err) => {
+      res.status(400).json(err);
+    });
+  });
 
 //get last 7 workouts
 router.get("/api/workouts/range", (req, res) => {
-    db.find({})
-    .then(dbData => {
-        res.json(dbData);
-    })
-    .catch((err) => {
-        res.json(err);
-    });
+    db.Workout.aggregate(
+      [
+        {
+          $addFields: {
+            totalDuration: {$sum: "$exercises.duration"}
+          }
+        }
+      ]
+    )
+      .sort( {day: "desc" })
+      .limit(7)
+      .sort( {day: "asc" })
+      .then((workouts) => {
+        res.status(200).json(workouts);
+      })
+      .catch((err) => {
+        res.status(400).json(err);
+      });
 });
 
-//add workout
-router.post("/api/workouts", (req, res) => {
-    db.create({
-      day: Date.now()
-    })
-      .then(newWorkout => {
-        console.log("New Workout Created: ", newWorkout);
-        res.json(newWorkout);
-      })
-      .catch(err => res.json(err));
-  });
+
+
+
+//add workouts
+router.post( '/api/workouts', async ( req, res ) => {
+	try {
+		const workoutData = await db.Workout.create( req.body );
+
+		res.status( 200 ).json( workoutData );
+
+	} catch ( err ) {
+		res.status( 400 ).json( err );
+	}
+} );
   
 
-  router.put("/api/workouts/:id", (req, res) => {
-    db.findByIdAndUpdate(
-      req.params.id,
-      { $push: { exercises: req.body } },
-      { new: true }
+  router.put("/api/workouts/:id", (req , res) => {
+      const workouts = req.body;
+    db.Workout.updateOne(
+      {_id: req.params.id },
+      { $push: { workouts: workouts } },
     )
-      .then(workout => res.json(workout))
+      .then(workouts => res.json(workouts))
       .catch(err => res.json(err));
   });
   
